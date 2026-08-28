@@ -13,6 +13,10 @@ export function Providers({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 60_000,
+            // Always refetch when a page mounts — after recording a
+            // transaction/note elsewhere, navigating here must show fresh data
+            // without a manual browser refresh.
+            refetchOnMount: "always",
             retry: 1,
             refetchOnWindowFocus: false,
           },
