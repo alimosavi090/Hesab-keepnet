@@ -17,8 +17,9 @@ export function Providers({ children }: { children: ReactNode }) {
             // transaction/note elsewhere, navigating here must show fresh data
             // without a manual browser refresh.
             refetchOnMount: "always",
+            // Accounting data: refresh whenever the tab regains focus too.
+            refetchOnWindowFocus: true,
             retry: 1,
-            refetchOnWindowFocus: false,
           },
         },
       })
