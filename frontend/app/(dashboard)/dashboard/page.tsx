@@ -115,6 +115,9 @@ export default function DashboardPage() {
     (d) => d.currency === currency
   );
 
+  const bankRows = (data?.banks ?? []).filter((b) => b.currency === currency);
+  const bankTotal = bankRows.reduce((acc, b) => acc + b.balance, 0);
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <div className="flex items-center gap-2">
@@ -295,19 +298,34 @@ export default function DashboardPage() {
                 <CardTitle className="text-section-title">حساب‌های بانکی</CardTitle>
               </CardHeader>
               <CardContent>
-                {(data?.banks ?? []).length === 0 ? (
+                {bankRows.length === 0 ? (
                   <p className="text-caption py-4 text-center">حسابی ثبت نشده است.</p>
                 ) : (
-                  <ul className="space-y-2.5">
-                    {(data?.banks ?? []).map((bank) => (
-                      <li key={bank.account_id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="truncate">{bank.name}</span>
-                        <span dir="ltr" className="numeric font-semibold">
-                          {formatNumber(bank.balance)} {bank.currency === "USD" ? "$" : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="space-y-2.5">
+                      {bankRows.map((bank) => (
+                        <li key={bank.account_id} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="truncate">{bank.name}</span>
+                          <span dir="ltr" className="numeric font-semibold">
+                            {formatNumber(bank.balance)} {bank.currency === "USD" ? "$" : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="border-t mt-3 pt-3 flex items-center justify-between">
+                      <span className="text-caption">جمع کل ({bankRows.length} حساب)</span>
+                      <span dir="ltr" className="numeric text-base font-extrabold text-income">
+                        <CountUp
+                          value={bankTotal}
+                          render={(n) =>
+                            currency === "USD"
+                              ? `$${formatNumber(Math.round(n))}`
+                              : formatNumber(Math.round(n))
+                          }
+                        />
+                      </span>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
