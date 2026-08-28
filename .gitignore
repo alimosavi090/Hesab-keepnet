@@ -1,0 +1,35 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Go build artifacts
+backend/bin/
+*.exe
+*.test
+*.out
+
+# Databases
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# TODO: بعد از افزودن اسکوپ workflow به توکن، این خط را حذف و فایل را کامیت کنید
+.github/workflows/
