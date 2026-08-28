@@ -33,7 +33,10 @@ function csrfToken(): string | undefined {
 }
 
 function buildUrl(path: string, options?: RequestOptions): string {
-  const url = new URL(`${BASE_URL}${path}`);
+  // Empty BASE_URL means "same origin" (production Nginx setup); `new URL`
+  // needs an absolute base, so fall back to the current page origin.
+  const base = BASE_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+  const url = new URL(`${base}${path}`);
   if (options?.query) {
     for (const [key, value] of Object.entries(options.query)) {
       if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
