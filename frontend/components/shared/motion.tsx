@@ -67,6 +67,10 @@ export function SlideIn({
 }
 
 /* Staggered group reveal */
+/* Staggered group reveal.
+   Uses `animate` (mount-driven) instead of `whileInView`: lists often render
+   empty first and fill after fetch — a scroll-triggered `once` reveal would
+   fire with zero children and leave late-mounted items stuck invisible. */
 export function Stagger({
   children,
   className,
@@ -82,8 +86,7 @@ export function Stagger({
     <motion.div
       className={className}
       initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-48px" }}
+      animate="show"
       transition={{ staggerChildren: step, delayChildren: delay }}
       {...props}
     >
