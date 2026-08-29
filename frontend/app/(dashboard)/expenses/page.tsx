@@ -229,6 +229,7 @@ function CreateExpenseDialog({
   const [accountId, setAccountId] = useState("cash");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<Currency>("RIAL");
+  const [occurredAt, setOccurredAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -247,7 +248,7 @@ function CreateExpenseDialog({
         bank_account_id: accountId === "cash" ? undefined : Number(accountId),
         amount: numericAmount,
         currency,
-        occurred_at: new Date().toISOString(),
+        occurred_at: new Date(`${occurredAt}T12:00:00`).toISOString(),
         description: description.trim() || undefined,
       });
     },
@@ -262,7 +263,7 @@ function CreateExpenseDialog({
 
   function resetAndClose(close: (open: boolean) => void) {
     setCategoryId(""); setAccountId("cash"); setAmount("");
-    setCurrency("RIAL"); setDescription(""); setError(null);
+    setCurrency("RIAL"); setOccurredAt(new Date().toISOString().slice(0, 10)); setDescription(""); setError(null);
     close(false);
   }
 
@@ -318,6 +319,18 @@ function CreateExpenseDialog({
           <div className="space-y-1.5">
             <Label htmlFor="exp-amount">مبلغ</Label>
             <Input id="exp-amount" dir="ltr" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="exp-date">تاریخ هزینه</Label>
+            <Input
+              id="exp-date"
+              type="date"
+              dir="ltr"
+              value={occurredAt}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setOccurredAt(e.target.value)}
+            />
           </div>
 
           <div className="space-y-1.5">

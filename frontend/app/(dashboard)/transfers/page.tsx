@@ -151,6 +151,7 @@ function CreateTransferDialog({
   const [fromId, setFromId] = useState("");
   const [toId, setToId] = useState("");
   const [amount, setAmount] = useState("");
+  const [transferredAt, setTransferredAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -169,7 +170,7 @@ function CreateTransferDialog({
         to_account_id: Number(toId),
         amount: Number(amount.replace(/\D/g, "")),
         currency: from?.currency ?? "RIAL",
-        transferred_at: new Date().toISOString(),
+        transferred_at: new Date(`${transferredAt}T12:00:00`).toISOString(),
       });
     },
     onSuccess: () => {
@@ -182,7 +183,7 @@ function CreateTransferDialog({
   });
 
   function reset() {
-    setFromId(""); setToId(""); setAmount(""); setError(null);
+    setFromId(""); setToId(""); setAmount(""); setTransferredAt(new Date().toISOString().slice(0, 10)); setError(null);
   }
 
   return (
@@ -226,6 +227,18 @@ function CreateTransferDialog({
             <Label htmlFor="tr-amount">مبلغ</Label>
             <Input id="tr-amount" dir="ltr" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
             <CurrencyHint accounts={accounts} fromId={fromId} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="tr-date">تاریخ انتقال</Label>
+            <Input
+              id="tr-date"
+              type="date"
+              dir="ltr"
+              value={transferredAt}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setTransferredAt(e.target.value)}
+            />
           </div>
 
           {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}

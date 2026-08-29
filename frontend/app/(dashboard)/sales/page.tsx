@@ -195,6 +195,7 @@ function CreateSaleDialog({
   const [currency, setCurrency] = useState<Currency>("RIAL");
   const [totalAmount, setTotalAmount] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [soldAt, setSoldAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [payments, setPayments] = useState<PaymentDraft[]>([
     { bank_account_id: "", gateway: "ZARINPAL", amount: "" },
   ]);
@@ -211,7 +212,7 @@ function CreateSaleDialog({
           bank_account_id: Number(p.bank_account_id),
           gateway: p.gateway,
           amount: Number(p.amount.replace(/\D/g, "")) || 0,
-          paid_at: new Date().toISOString(),
+          paid_at: new Date(`${soldAt}T12:00:00`).toISOString(),
         }));
 
       if (payloadPayments.some((p) => p.amount <= 0)) {
@@ -221,7 +222,7 @@ function CreateSaleDialog({
       return salesApi.create({
         total_amount: numericTotal,
         currency,
-        sold_at: new Date().toISOString(),
+        sold_at: new Date(`${soldAt}T12:00:00`).toISOString(),
         customer_name: customerName.trim() || undefined,
         payments: payloadPayments,
       });
@@ -237,6 +238,7 @@ function CreateSaleDialog({
 
   function reset() {
     setCurrency("RIAL"); setTotalAmount(""); setCustomerName("");
+    setSoldAt(new Date().toISOString().slice(0, 10));
     setPayments([{ bank_account_id: "", gateway: "ZARINPAL", amount: "" }]);
     setError(null);
   }
@@ -275,6 +277,18 @@ function CreateSaleDialog({
           <div className="space-y-1.5">
             <Label htmlFor="sale-customer">خریدار (اختیاری)</Label>
             <Input id="sale-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sale-date">تاریخ فروش</Label>
+            <Input
+              id="sale-date"
+              type="date"
+              dir="ltr"
+              value={soldAt}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setSoldAt(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">

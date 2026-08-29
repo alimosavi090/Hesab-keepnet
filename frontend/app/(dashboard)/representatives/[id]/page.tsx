@@ -197,6 +197,7 @@ function RecordTransactionBody({
   const [direction, setDirection] = useState<RepDirection>("DEBIT");
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -225,7 +226,7 @@ function RecordTransactionBody({
       return representativesApi.recordTransaction(representativeId, {
         direction,
         amount: numericAmount,
-        occurred_at: new Date().toISOString(),
+        occurred_at: new Date(`${occurredAt}T12:00:00`).toISOString(),
         ...(direction === "CREDIT" && accountId
           ? { bank_account_id: Number(accountId) }
           : {}),
@@ -284,6 +285,17 @@ function RecordTransactionBody({
       <div className="space-y-1.5">
         <Label htmlFor="rtx-amount">مبلغ</Label>
         <Input id="rtx-amount" dir="ltr" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="rtx-date">تاریخ</Label>
+        <Input
+          id="rtx-date"
+          type="date"
+          dir="ltr"
+          value={occurredAt}
+          max={new Date().toISOString().slice(0, 10)}
+          onChange={(e) => setOccurredAt(e.target.value)}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="rtx-desc">شرح</Label>
