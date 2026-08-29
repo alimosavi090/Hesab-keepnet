@@ -221,30 +221,36 @@ type SaleListItem struct {
 }
 
 func (s *SaleService) List(ctx context.Context, filter SaleFilter) ([]SaleListItem, int64, error) {
-	query := s.db.WithContext(ctx).Model(&models.Sale{})
-	applyTimeRange(query, "sold_at", filter.From, filter.To)
-	if filter.Currency != "" {
-		query = query.Where("sales.currency = ?", filter.Currency)
+	if filter.Gateway != "" && !filter.Gateway.Valid() {
+		return nil, 0, apperr.Validation("درگاه پرداخت نامعتبر است.")
 	}
-	if filter.Gateway != "" {
-		if !filter.Gateway.Valid() {
-			return nil, 0, apperr.Validation("درگاه پرداخت نامعتبر است.")
+
+	// Build filters fresh for each query: reusing one *gorm.DB after
+	// `Distinct("sales.id").Count()` leaks that select into the Find and
+	// zeroes every non-id field.
+	base := func() *gorm.DB {
+		q := s.db.WithContext(ctx).Model(&models.Sale{})
+		applyTimeRange(q, "sold_at", filter.From, filter.To)
+		if filter.Currency != "" {
+			q = q.Where("sales.currency = ?", filter.Currency)
 		}
-		query = query.Joins(
-			"JOIN sale_payments sp ON sp.sale_id = sales.id AND sp.deleted_at IS NULL AND sp.gateway = ?",
-			string(filter.Gateway),
-		)
+		if filter.Gateway != "" {
+			q = q.Joins(
+				"JOIN sale_payments sp ON sp.sale_id = sales.id AND sp.deleted_at IS NULL AND sp.gateway = ?",
+				string(filter.Gateway),
+			)
+		}
+		return q
 	}
 
 	var total int64
-	if err := query.Distinct("sales.id").Count(&total).Error; err != nil {
+	if err := base().Distinct("sales.id").Count(&total).Error; err != nil {
 		return nil, 0, apperr.Database(err)
 	}
 
 	offset, limit := filter.Normalized()
 	var sales []models.Sale
-	if err := query.Session(&gorm.Session{}).
-		Distinct().
+	if err := base().
 		Order("sales.sold_at DESC, sales.id DESC").
 		Limit(limit).Offset(offset).
 		Find(&sales).Error; err != nil {
