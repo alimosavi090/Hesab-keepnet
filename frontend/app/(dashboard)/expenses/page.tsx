@@ -26,6 +26,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Money } from "@/components/shared/money";
 import { JalaliDate } from "@/components/shared/jalali-date";
 import { ConfirmDialog } from "@/components/shared/dialogs";
+import { JalaliDateInput } from "@/components/shared/jalali-date-input";
 import {
   PageToolbar,
   ToolbarSpacer,
@@ -321,17 +322,7 @@ function CreateExpenseDialog({
             <Input id="exp-amount" dir="ltr" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="exp-date">تاریخ هزینه</Label>
-            <Input
-              id="exp-date"
-              type="date"
-              dir="ltr"
-              value={occurredAt}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </div>
+          <JalaliDateInput id="exp-date" label="تاریخ هزینه" value={occurredAt} onChange={setOccurredAt} />
 
           <div className="space-y-1.5">
             <Label htmlFor="exp-desc">توضیحات</Label>

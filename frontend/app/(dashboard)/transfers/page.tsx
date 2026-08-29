@@ -25,6 +25,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Money } from "@/components/shared/money";
 import { JalaliDate } from "@/components/shared/jalali-date";
 import { ConfirmDialog } from "@/components/shared/dialogs";
+import { JalaliDateInput } from "@/components/shared/jalali-date-input";
 import {
   PageToolbar,
   ToolbarSpacer,
@@ -229,17 +230,7 @@ function CreateTransferDialog({
             <CurrencyHint accounts={accounts} fromId={fromId} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="tr-date">تاریخ انتقال</Label>
-            <Input
-              id="tr-date"
-              type="date"
-              dir="ltr"
-              value={transferredAt}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setTransferredAt(e.target.value)}
-            />
-          </div>
+          <JalaliDateInput id="tr-date" label="تاریخ انتقال" value={transferredAt} onChange={setTransferredAt} />
 
           {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
         </div>

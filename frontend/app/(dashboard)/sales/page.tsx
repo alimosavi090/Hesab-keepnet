@@ -27,6 +27,7 @@ import { Money } from "@/components/shared/money";
 import { JalaliDate } from "@/components/shared/jalali-date";
 import { ConfirmDialog } from "@/components/shared/dialogs";
 import { EntityNotes } from "@/components/shared/entity-notes";
+import { JalaliDateInput } from "@/components/shared/jalali-date-input";
 import {
   PageToolbar,
   ToolbarSpacer,
@@ -279,17 +280,7 @@ function CreateSaleDialog({
             <Input id="sale-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="sale-date">تاریخ فروش</Label>
-            <Input
-              id="sale-date"
-              type="date"
-              dir="ltr"
-              value={soldAt}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setSoldAt(e.target.value)}
-            />
-          </div>
+          <JalaliDateInput id="sale-date" label="تاریخ فروش" value={soldAt} onChange={setSoldAt} />
 
           <div className="space-y-2">
             <Label>پرداخت‌ها</Label>

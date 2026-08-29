@@ -28,6 +28,7 @@ import { Money } from "@/components/shared/money";
 import { JalaliDate } from "@/components/shared/jalali-date";
 import { ConfirmDialog } from "@/components/shared/dialogs";
 import { EntityNotes } from "@/components/shared/entity-notes";
+import { JalaliDateInput } from "@/components/shared/jalali-date-input";
 
 export default function RepresentativeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -286,17 +287,7 @@ function RecordTransactionBody({
         <Label htmlFor="rtx-amount">مبلغ</Label>
         <Input id="rtx-amount" dir="ltr" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="rtx-date">تاریخ</Label>
-        <Input
-          id="rtx-date"
-          type="date"
-          dir="ltr"
-          value={occurredAt}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => setOccurredAt(e.target.value)}
-        />
-      </div>
+      <JalaliDateInput id="rtx-date" label="تاریخ" value={occurredAt} onChange={setOccurredAt} />
       <div className="space-y-1.5">
         <Label htmlFor="rtx-desc">شرح</Label>
         <Input id="rtx-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
