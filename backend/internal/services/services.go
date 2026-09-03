@@ -27,7 +27,7 @@ type Services struct {
 func NewServices(db *gorm.DB) *Services {
 	return &Services{
 		DB:              db,
-		BankAccounts:    &BankAccountService{db},
+		BankAccounts:    &BankAccountService{db, repository.NewAuditRepository(db)},
 		Categories:      &CategoryService{db, repository.NewCategoryRepository(db)},
 		Sales:           &SaleService{db, repository.NewAuditRepository(db)},
 		Expenses:        &ExpenseService{db, repository.NewAuditRepository(db)},

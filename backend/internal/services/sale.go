@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ali/hesab-keepnet/backend/internal/apperr"
@@ -152,6 +153,54 @@ func (s *SaleService) Get(ctx context.Context, id int64) (*models.Sale, error) {
 	var sale models.Sale
 	if err := s.db.WithContext(ctx).Preload("Payments").First(&sale, id).Error; err != nil {
 		return nil, apperr.Normalize(err)
+	}
+	return &sale, nil
+}
+
+type UpdateSaleInput struct {
+	TotalAmount  *int64     `json:"total_amount"`
+	CustomerName *string    `json:"customer_name"`
+	SoldAt       *time.Time `json:"sold_at"`
+}
+
+func (s *SaleService) Update(ctx context.Context, id int64, in UpdateSaleInput) (*models.Sale, error) {
+	if in.TotalAmount == nil && in.CustomerName == nil && in.SoldAt == nil {
+		return nil, apperr.Validation("حداقل یک فیلد برای ویرایش لازم است.")
+	}
+	if in.TotalAmount != nil {
+		if err := requirePositive(*in.TotalAmount); err != nil {
+			return nil, err
+		}
+	}
+
+	var sale models.Sale
+	err := database.WithImmediateTx(ctx, s.db, func(tx *gorm.DB) error {
+		if err := tx.First(&sale, id).Error; err != nil {
+			return apperr.Normalize(err)
+		}
+		if in.TotalAmount != nil {
+			sale.TotalAmount = *in.TotalAmount
+		}
+		if in.CustomerName != nil {
+			name := strings.TrimSpace(*in.CustomerName)
+			if name == "" {
+				sale.CustomerName = nil
+			} else {
+				sale.CustomerName = &name
+			}
+		}
+		if in.SoldAt != nil {
+			sale.SoldAt = normalizeUTC(*in.SoldAt)
+		}
+		if err := tx.Save(&sale).Error; err != nil {
+			return apperr.Database(err)
+		}
+		return writeAudit(s.audit, tx, ActionUpdate, "sale", sale.ID, map[string]any{
+			"total_amount": sale.TotalAmount,
+		})
+	})
+	if err != nil {
+		return nil, err
 	}
 	return &sale, nil
 }

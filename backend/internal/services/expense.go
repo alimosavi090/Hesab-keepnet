@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ali/hesab-keepnet/backend/internal/apperr"
@@ -124,6 +125,84 @@ func (s *ExpenseService) Get(ctx context.Context, id int64) (*models.Expense, er
 		return nil, apperr.Normalize(err)
 	}
 	return &expense, nil
+}
+
+type UpdateExpenseInput struct {
+	CategoryID  *int64     `json:"category_id"`
+	Amount      *int64     `json:"amount"`
+	OccurredAt  *time.Time `json:"occurred_at"`
+	Description *string    `json:"description"`
+}
+
+// Update edits an expense and keeps its linked ledger row (bank-account
+// side of double-entry) in sync with the new amount/date/description.
+func (s *ExpenseService) Update(ctx context.Context, id int64, in UpdateExpenseInput) (*models.Expense, error) {
+	if in.CategoryID == nil && in.Amount == nil && in.OccurredAt == nil && in.Description == nil {
+		return nil, apperr.Validation("حداقل یک فیلد برای ویرایش لازم است.")
+	}
+	if in.Amount != nil {
+		if err := requirePositive(*in.Amount); err != nil {
+			return nil, err
+		}
+	}
+
+	var expense models.Expense
+	err := database.WithImmediateTx(ctx, s.db, func(tx *gorm.DB) error {
+		if err := tx.First(&expense, id).Error; err != nil {
+			return apperr.Normalize(err)
+		}
+		if in.CategoryID != nil {
+			var category models.Category
+			if err := tx.First(&category, *in.CategoryID).Error; err != nil {
+				return apperr.Validation("دسته انتخابی یافت نشد.")
+			}
+			expense.CategoryID = category.ID
+		}
+		if in.Amount != nil {
+			expense.Amount = *in.Amount
+		}
+		if in.OccurredAt != nil {
+			expense.OccurredAt = normalizeUTC(*in.OccurredAt)
+		}
+		if in.Description != nil {
+			desc := strings.TrimSpace(*in.Description)
+			if desc == "" {
+				expense.Description = nil
+			} else {
+				expense.Description = &desc
+			}
+		}
+		if err := tx.Save(&expense).Error; err != nil {
+			return apperr.Database(err)
+		}
+
+		// Mirror the change onto the ledger row so the linked bank
+		// account balance stays correct.
+		if expense.BankAccountID != nil {
+			updates := map[string]any{
+				"amount":      expense.Amount,
+				"occurred_at": expense.OccurredAt,
+			}
+			if expense.Description != nil {
+				updates["description"] = *expense.Description
+			} else {
+				updates["description"] = nil
+			}
+			if err := tx.Model(&models.LedgerTransaction{}).
+				Where("expense_id = ? AND deleted_at IS NULL", expense.ID).
+				Updates(updates).Error; err != nil {
+				return apperr.Database(err)
+			}
+		}
+
+		return writeAudit(s.audit, tx, ActionUpdate, "expense", expense.ID, map[string]any{
+			"amount": expense.Amount,
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, id)
 }
 
 func (s *ExpenseService) Delete(ctx context.Context, id int64) error {

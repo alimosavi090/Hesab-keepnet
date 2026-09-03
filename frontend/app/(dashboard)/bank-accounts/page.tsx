@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { IconBuildingBank, IconLoader2, IconPlus } from "@tabler/icons-react";
+import { IconBuildingBank, IconLoader2, IconPencil, IconPlus } from "@tabler/icons-react";
 import {
   bankAccountsApi,
 } from "@/lib/api";
@@ -53,6 +53,7 @@ type BankAccount = {
 export default function BankAccountsPage() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<BankAccount | null>(null);
 
   const query = useQuery({
     queryKey: ["bank-accounts"],
@@ -91,18 +92,19 @@ export default function BankAccountsPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {accounts.map((account, index) => (
             <FadeIn key={account.id} delay={index * 0.04}>
-              <AccountCard account={account} onChanged={invalidate} />
+              <AccountCard account={account} onChanged={invalidate} onEdit={() => setEditing(account)} />
             </FadeIn>
           ))}
         </div>
       )}
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={invalidate} />
+      <EditAccountDialog account={editing} onClose={() => setEditing(null)} onSaved={invalidate} />
     </div>
   );
 }
 
-function AccountCard({ account, onChanged }: { account: BankAccount; onChanged: () => void }) {
+function AccountCard({ account, onChanged, onEdit }: { account: BankAccount; onChanged: () => void; onEdit: () => void }) {
   const [confirmToggle, setConfirmToggle] = useState(false);
 
   const toggleMutation = useMutation({
@@ -134,9 +136,14 @@ function AccountCard({ account, onChanged }: { account: BankAccount; onChanged: 
               <p className="text-caption">{account.bank_name}</p>
             </div>
           </div>
-          <Badge variant={account.is_active ? "secondary" : "outline"}>
-            {account.is_active ? "فعال" : "غیرفعال"}
-          </Badge>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" aria-label={`ویرایش ${account.name}`} onClick={onEdit}>
+              <IconPencil className="text-muted-foreground size-4 transition-colors duration-300 hover:text-primary" />
+            </Button>
+            <Badge variant={account.is_active ? "secondary" : "outline"}>
+              {account.is_active ? "فعال" : "غیرفعال"}
+            </Badge>
+          </div>
         </div>
 
         <div className="border-t pt-3">
@@ -323,6 +330,86 @@ function CreateAccountDialog({
             ذخیره
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditAccountDialog({
+  account,
+  onClose,
+  onSaved,
+}: {
+  account: BankAccount | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [description, setDescription] = useState("");
+  const [initialized, setInitialized] = useState<number | null>(null);
+
+  if (account && initialized !== account.id) {
+    setInitialized(account.id);
+    setName(account.name);
+    setBankName(account.bank_name);
+    setCardNumber(account.card_number ?? "");
+    setDescription(account.description ?? "");
+  }
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      bankAccountsApi.update(account!.id, {
+        name: name.trim(),
+        bank_name: bankName.trim(),
+        card_number: cardNumber.replace(/\D/g, "") || undefined,
+        description: description.trim() || undefined,
+      }),
+    onSuccess: () => {
+      toast.success("حساب ویرایش شد.");
+      onSaved();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={account !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>ویرایش حساب بانکی</DialogTitle>
+        </DialogHeader>
+        {account ? (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-acc-name">نام مستعار</Label>
+              <Input id="edit-acc-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-acc-bank">نام بانک</Label>
+              <Input id="edit-acc-bank" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-acc-card">شماره کارت</Label>
+              <Input id="edit-acc-card" dir="ltr" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-acc-desc">توضیحات</Label>
+              <Textarea id="edit-acc-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <p className="text-caption">
+              ارز و موجودی اولیه قابل ویرایش نیستند؛ موجودی اولیه فقط با ساخت حساب جدید تعیین می‌شود.
+            </p>
+            {mutation.isError ? <ErrorText>{(mutation.error as Error).message}</ErrorText> : null}
+            <DialogFooter>
+              <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !name.trim() || !bankName.trim()} className="glow-primary rounded-xl">
+                {mutation.isPending ? <IconLoader2 className="size-4 animate-spin" /> : null}
+                ذخیره تغییرات
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

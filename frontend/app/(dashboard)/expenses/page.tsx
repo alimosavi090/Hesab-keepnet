@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { IconLoader2, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconLoader2, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { categoriesApi, expensesApi, bankAccountsApi } from "@/lib/api";
 import type { CategoryType, Currency, Expense } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ export default function ExpensesPage() {
   const [typeFilter, setTypeFilter] = useState<"ALL" | CategoryType>("ALL");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<Expense | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const [rangeQuery, setRangeQuery] = useState(() => computeRange(30));
@@ -154,30 +155,7 @@ export default function ExpensesPage() {
               </TableHeader>
               <TableBody>
                 {filteredExpenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell><JalaliDate iso={expense.occurred_at} /></TableCell>
-                    <TableCell>{expense.category?.name ?? "—"}</TableCell>
-                    <TableCell>
-                      {expense.category?.type === "BUSINESS" ? (
-                        <Badge variant="outline" className="border-expense-business/40 text-expense-business">کسب‌وکار</Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-expense-personal/40 text-expense-personal">شخصی</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-end">
-                      <Money amount={expense.amount} currency={expense.currency} sign="negative" className="font-semibold" />
-                    </TableCell>
-                    <TableCell className="text-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`حذف هزینه ${expense.id}`}
-                        onClick={() => setDeleteId(expense.id)}
-                      >
-                        <IconTrash className="text-muted-foreground size-4 transition-colors duration-300 hover:text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <ExpenseRow key={expense.id} expense={expense} onEdit={() => setEditing(expense)} onDelete={() => setDeleteId(expense.id)} />
                 ))}
               </TableBody>
             </Table>
@@ -194,6 +172,15 @@ export default function ExpensesPage() {
         destructive
         pending={deleteMutation.isPending}
         onConfirm={() => deleteId !== null && deleteMutation.mutate(deleteId)}
+      />
+
+      <EditExpenseDialog
+        expense={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ["expenses"] });
+          queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
+        }}
       />
 
       <CreateExpenseDialog
@@ -337,6 +324,154 @@ function CreateExpenseDialog({
             ذخیره
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ExpenseRow({
+  expense,
+  onEdit,
+  onDelete,
+}: {
+  expense: Expense;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <TableRow>
+      <TableCell><JalaliDate iso={expense.occurred_at} /></TableCell>
+      <TableCell>{expense.category?.name ?? "—"}</TableCell>
+      <TableCell>
+        {expense.category?.type === "BUSINESS" ? (
+          <Badge variant="outline" className="border-expense-business/40 text-expense-business">کسب‌وکار</Badge>
+        ) : (
+          <Badge variant="outline" className="border-expense-personal/40 text-expense-personal">شخصی</Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-end">
+        <Money amount={expense.amount} currency={expense.currency} sign="negative" className="font-semibold" />
+      </TableCell>
+      <TableCell className="text-end">
+        <div className="flex items-center justify-end gap-0.5">
+          <Button variant="ghost" size="icon" aria-label={`ویرایش هزینه ${expense.id}`} onClick={onEdit}>
+            <IconPencil className="text-muted-foreground size-4 transition-colors duration-300 hover:text-primary" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`حذف هزینه ${expense.id}`}
+            onClick={onDelete}
+          >
+            <IconTrash className="text-muted-foreground size-4 transition-colors duration-300 hover:text-destructive" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function EditExpenseDialog({
+  expense,
+  onClose,
+  onSaved,
+}: {
+  expense: Expense | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [categoryId, setCategoryId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [description, setDescription] = useState("");
+  const [initialized, setInitialized] = useState<number | null>(null);
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => categoriesApi.list(),
+    enabled: expense !== null,
+  });
+  const categories = categoriesQuery.data ?? [];
+
+  if (expense && initialized !== expense.id) {
+    setInitialized(expense.id);
+    setCategoryId(String(expense.category_id));
+    setAmount(String(expense.amount));
+    setOccurredAt(expense.occurred_at.slice(0, 10));
+    setDescription(expense.description ?? "");
+  }
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const numericAmount = Number(amount.replace(/\D/g, ""));
+      if (!numericAmount || numericAmount <= 0) throw new Error("مبلغ نامعتبر است.");
+      if (!categoryId) throw new Error("دسته را انتخاب کنید.");
+      return expensesApi.update(expense!.id, {
+        category_id: Number(categoryId),
+        amount: numericAmount,
+        occurred_at: new Date(`${occurredAt}T12:00:00`).toISOString(),
+        description: description.trim() || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success("هزینه ویرایش شد؛ مانده حساب همگام شد.");
+      onSaved();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={expense !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>ویرایش هزینه #{expense?.id ?? ""}</DialogTitle>
+        </DialogHeader>
+        {expense ? (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>دسته‌بندی</Label>
+              <UiSelect value={categoryId || undefined} onValueChange={setCategoryId}>
+                <SelectTrigger><SelectValue placeholder="انتخاب دسته" /></SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.type === "BUSINESS" ? "کسب‌وکار · " : "شخصی · "}{c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </UiSelect>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-exp-amount">مبلغ</Label>
+              <Input
+                id="edit-exp-amount"
+                dir="ltr"
+                inputMode="numeric"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              {expense.bank_account_id ? (
+                <p className="text-caption">این هزینه به یک حساب بانکی متصل است؛ مانده حساب با ذخیره همگام می‌شود.</p>
+              ) : null}
+            </div>
+
+            <JalaliDateInput id="edit-exp-date" label="تاریخ هزینه" value={occurredAt} onChange={setOccurredAt} />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-exp-desc">توضیحات</Label>
+              <Input id="edit-exp-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} className="glow-primary rounded-xl">
+                {mutation.isPending ? <IconLoader2 className="size-4 animate-spin" /> : null}
+                ذخیره تغییرات
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

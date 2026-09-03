@@ -60,6 +60,7 @@ export function JalaliDateInput({ id, label, value, onChange }: Props) {
   const daysInMonth = useMemo(() => {
     if (!parts) return 31;
     return getDaysInMonth(parse(`${parts.y}/${pad(parts.m)}/01`, "yyyy/MM/dd", new Date()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parts?.y, parts?.m]);
 
   function update(next: { y?: number; m?: number; d?: number }) {

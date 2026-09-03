@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { IconLoader2, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconLoader2, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { bankAccountsApi, salesApi } from "@/lib/api";
 import type { Currency, Gateway, SaleListItem } from "@/types/api";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,7 @@ type PaymentDraft = { bank_account_id: string; gateway: Gateway; amount: string 
 export default function SalesPage() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<SaleListItem | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const salesQuery = useQuery({
@@ -126,7 +127,7 @@ export default function SalesPage() {
               </TableHeader>
               <TableBody>
                 {sales.map((sale) => (
-                  <SaleRow key={sale.id} sale={sale} onDelete={() => setDeleteId(sale.id)} />
+                  <SaleRow key={sale.id} sale={sale} onEdit={() => setEditing(sale)} onDelete={() => setDeleteId(sale.id)} />
                 ))}
               </TableBody>
             </Table>
@@ -145,12 +146,18 @@ export default function SalesPage() {
         onConfirm={() => deleteId !== null && deleteMutation.mutate(deleteId)}
       />
 
+      <EditSaleDialog
+        sale={editing}
+        onClose={() => setEditing(null)}
+        onSaved={invalidate}
+      />
+
       <CreateSaleDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={invalidate} />
     </div>
   );
 }
 
-function SaleRow({ sale, onDelete }: { sale: SaleListItem; onDelete: () => void }) {
+function SaleRow({ sale, onEdit, onDelete }: { sale: SaleListItem; onEdit: () => void; onDelete: () => void }) {
   return (
     <TableRow>
       <TableCell><JalaliDate iso={sale.sold_at} /></TableCell>
@@ -168,6 +175,9 @@ function SaleRow({ sale, onDelete }: { sale: SaleListItem; onDelete: () => void 
       </TableCell>
       <TableCell className="text-end">
         <div className="flex items-center justify-end gap-0.5">
+          <Button variant="ghost" size="icon" aria-label={`ویرایش فروش ${sale.id}`} onClick={onEdit}>
+            <IconPencil className="text-muted-foreground size-4 transition-colors duration-300 hover:text-primary" />
+          </Button>
           <EntityNotes entityType="SALE" entityId={sale.id} title={`فروش #${sale.id}`} />
           <Button variant="ghost" size="icon" aria-label={`حذف فروش ${sale.id}`} onClick={onDelete}>
             <IconTrash className="text-muted-foreground size-4 transition-colors duration-300 hover:text-destructive" />
@@ -175,6 +185,85 @@ function SaleRow({ sale, onDelete }: { sale: SaleListItem; onDelete: () => void 
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function EditSaleDialog({
+  sale,
+  onClose,
+  onSaved,
+}: {
+  sale: SaleListItem | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [totalAmount, setTotalAmount] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [soldAt, setSoldAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [initialized, setInitialized] = useState<number | null>(null);
+
+  // Prefill when a different sale is opened for editing.
+  if (sale && initialized !== sale.id) {
+    setInitialized(sale.id);
+    setTotalAmount(String(sale.total_amount));
+    setCustomerName(sale.customer_name ?? "");
+    setSoldAt(sale.sold_at.slice(0, 10));
+  }
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const numericTotal = Number(totalAmount.replace(/\D/g, ""));
+      if (!numericTotal || numericTotal <= 0) throw new Error("مبلغ کل نامعتبر است.");
+      return salesApi.update(sale!.id, {
+        total_amount: numericTotal,
+        customer_name: customerName.trim() || undefined,
+        sold_at: new Date(`${soldAt}T12:00:00`).toISOString(),
+      });
+    },
+    onSuccess: () => {
+      toast.success("فروش ویرایش شد.");
+      onSaved();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={sale !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>ویرایش فروش #{sale?.id ?? ""}</DialogTitle>
+        </DialogHeader>
+        {sale ? (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-sale-total">مبلغ کل</Label>
+              <Input
+                id="edit-sale-total"
+                dir="ltr"
+                inputMode="numeric"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
+              />
+              <p className="text-caption">
+                مبلغ پرداخت‌شده: <span className="numeric">{sale.paid_amount.toLocaleString("fa-IR")}</span> — پرداخت‌ها با ویرایش مبلغ تغییر نمی‌کنند.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-sale-customer">خریدار</Label>
+              <Input id="edit-sale-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            </div>
+            <JalaliDateInput id="edit-sale-date" label="تاریخ فروش" value={soldAt} onChange={setSoldAt} />
+            <DialogFooter>
+              <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} className="glow-primary rounded-xl">
+                {mutation.isPending ? <IconLoader2 className="size-4 animate-spin" /> : null}
+                ذخیره تغییرات
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 

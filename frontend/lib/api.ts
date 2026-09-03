@@ -86,6 +86,8 @@ export const bankAccountsApi = {
     apiPost<BankAccount>(`/api/v1/bank-accounts`, input),
   setActive: (id: number, is_active: boolean) =>
     apiPatch<unknown>(`/api/v1/bank-accounts/${id}`, { is_active }),
+  update: (id: number, input: { name?: string; bank_name?: string; card_number?: string; description?: string; initial_balance?: number }) =>
+    apiPatch<BankAccount>(`/api/v1/bank-accounts/${id}/edit`, input),
 };
 
 export const categoriesApi = {
@@ -100,6 +102,8 @@ export const expensesApi = {
     apiPaged<Expense>(`/api/v1/expenses`, params),
   create: (input: { category_id: number; bank_account_id?: number; amount: number; currency: Currency; occurred_at: string; description?: string }) =>
     apiPost<Expense>(`/api/v1/expenses`, input),
+  update: (id: number, input: { category_id?: number; amount?: number; occurred_at?: string; description?: string }) =>
+    apiPatch<Expense>(`/api/v1/expenses/${id}`, input),
   remove: (id: number) => apiDelete(`/api/v1/expenses/${id}`),
 };
 
@@ -114,6 +118,8 @@ export const salesApi = {
     customer_name?: string;
     payments: Array<{ bank_account_id: number; gateway: Gateway; amount: number; paid_at: string; gateway_ref?: string }>;
   }) => apiPost<Sale>(`/api/v1/sales`, input),
+  update: (id: number, input: { total_amount?: number; customer_name?: string; sold_at?: string }) =>
+    apiPatch<Sale>(`/api/v1/sales/${id}`, input),
   remove: (id: number) => apiDelete(`/api/v1/sales/${id}`),
 };
 

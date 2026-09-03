@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import {
-  MutationCache,
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";

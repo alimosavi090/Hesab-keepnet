@@ -68,6 +68,9 @@ func NewRouter(cfg *config.Config, db *database.DB, log *slog.Logger) *gin.Engin
 	protected.POST("/bank-accounts", financial.CreateBankAccount)
 	protected.GET("/bank-accounts/:id/balance", financial.GetBankAccountBalance)
 	protected.PATCH("/bank-accounts/:id", financial.UpdateBankAccountActive)
+	protected.PATCH("/bank-accounts/:id/edit", financial.UpdateBankAccount)
+	protected.PATCH("/sales/:id", financial.UpdateSale)
+	protected.PATCH("/expenses/:id", financial.UpdateExpense)
 
 	protected.GET("/categories", financial.ListCategories)
 	protected.POST("/categories", financial.CreateCategory)

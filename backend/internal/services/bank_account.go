@@ -2,15 +2,18 @@ package services
 
 import (
 	"context"
+	"strings"
 
 	"github.com/ali/hesab-keepnet/backend/internal/apperr"
 	"github.com/ali/hesab-keepnet/backend/internal/enums"
 	"github.com/ali/hesab-keepnet/backend/internal/models"
+	"github.com/ali/hesab-keepnet/backend/internal/repository"
 	"gorm.io/gorm"
 )
 
 type BankAccountService struct {
-	db *gorm.DB
+	db    *gorm.DB
+	audit repository.AuditRepository
 }
 
 type CreateBankAccountInput struct {
@@ -55,8 +58,82 @@ func (s *BankAccountService) Create(ctx context.Context, in CreateBankAccountInp
 	return &account, nil
 }
 
-func (s *BankAccountService) Get(ctx context.Context, id int64) (*models.BankAccount, error) {
+type UpdateBankAccountInput struct {
+	Name           *string `json:"name"`
+	BankName       *string `json:"bank_name"`
+	CardNumber     *string `json:"card_number"`
+	Description    *string `json:"description"`
+	InitialBalance *int64  `json:"initial_balance"`
+}
+
+// Update edits account metadata. InitialBalance changes shift the computed
+// balance by definition (initial + in − out) and are audited.
+func (s *BankAccountService) Update(ctx context.Context, id int64, in UpdateBankAccountInput) (*models.BankAccount, error) {
+	if in.Name == nil && in.BankName == nil && in.CardNumber == nil && in.Description == nil && in.InitialBalance == nil {
+		return nil, apperr.Validation("حداقل یک فیلد برای ویرایش لازم است.")
+	}
+
 	var account models.BankAccount
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.First(&account, id).Error; err != nil {
+			return apperr.Normalize(err)
+		}
+		if in.Name != nil {
+			name := strings.TrimSpace(*in.Name)
+			if name == "" {
+				return apperr.Validation("نام حساب نمی‌تواند خالی باشد.")
+			}
+			var count int64
+			if err := tx.Model(&models.BankAccount{}).
+				Where("name = ? AND id <> ? AND deleted_at IS NULL", name, id).
+				Count(&count).Error; err != nil {
+				return apperr.Database(err)
+			}
+			if count > 0 {
+				return apperr.Conflict("حسابی با نام %q از قبل وجود دارد.", name)
+			}
+			account.Name = name
+		}
+		if in.BankName != nil {
+			bank := strings.TrimSpace(*in.BankName)
+			if bank == "" {
+				return apperr.Validation("نام بانک نمی‌تواند خالی باشد.")
+			}
+			account.BankName = bank
+		}
+		if in.CardNumber != nil {
+			card := strings.TrimSpace(*in.CardNumber)
+			if card == "" {
+				account.CardNumber = nil
+			} else {
+				account.CardNumber = &card
+			}
+		}
+		if in.Description != nil {
+			desc := strings.TrimSpace(*in.Description)
+			if desc == "" {
+				account.Description = nil
+			} else {
+				account.Description = &desc
+			}
+		}
+		if in.InitialBalance != nil {
+			account.InitialBalance = *in.InitialBalance
+		}
+		if err := tx.Save(&account).Error; err != nil {
+			return apperr.Database(err)
+		}
+		return writeAudit(s.audit, tx, ActionUpdate, "bank_account", account.ID, map[string]any{
+			"name": account.Name,
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (s *BankAccountService) Get(ctx context.Context, id int64) (*models.BankAccount, error) {	var account models.BankAccount
 	if err := s.db.WithContext(ctx).First(&account, id).Error; err != nil {
 		return nil, apperr.Normalize(err)
 	}
