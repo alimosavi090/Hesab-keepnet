@@ -347,6 +347,7 @@ function EditAccountDialog({
   const [name, setName] = useState("");
   const [bankName, setBankName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
+  const [initialBalance, setInitialBalance] = useState("");
   const [description, setDescription] = useState("");
   const [initialized, setInitialized] = useState<number | null>(null);
 
@@ -355,6 +356,7 @@ function EditAccountDialog({
     setName(account.name);
     setBankName(account.bank_name);
     setCardNumber(account.card_number ?? "");
+    setInitialBalance(String(account.initial_balance));
     setDescription(account.description ?? "");
   }
 
@@ -364,10 +366,11 @@ function EditAccountDialog({
         name: name.trim(),
         bank_name: bankName.trim(),
         card_number: cardNumber.replace(/\D/g, "") || undefined,
+        initial_balance: Number(initialBalance.replace(/[^\d-]/g, "")) || 0,
         description: description.trim() || undefined,
       }),
     onSuccess: () => {
-      toast.success("حساب ویرایش شد.");
+      toast.success("حساب ویرایش شد؛ مانده محاسباتی به‌روزرسانی شد.");
       onSaved();
       onClose();
     },
@@ -395,12 +398,22 @@ function EditAccountDialog({
               <Input id="edit-acc-card" dir="ltr" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} />
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="edit-acc-initial">موجودی اولیه</Label>
+              <Input
+                id="edit-acc-initial"
+                dir="ltr"
+                inputMode="numeric"
+                value={initialBalance}
+                onChange={(e) => setInitialBalance(e.target.value)}
+              />
+              <p className="text-caption">
+                مانده محاسباتی = موجودی اولیه + ورود − خروج. تغییر این عدد، مانده فعلی را به همان نسبت جابه‌جا می‌کند.
+              </p>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="edit-acc-desc">توضیحات</Label>
               <Textarea id="edit-acc-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
-            <p className="text-caption">
-              ارز و موجودی اولیه قابل ویرایش نیستند؛ موجودی اولیه فقط با ساخت حساب جدید تعیین می‌شود.
-            </p>
             {mutation.isError ? <ErrorText>{(mutation.error as Error).message}</ErrorText> : null}
             <DialogFooter>
               <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !name.trim() || !bankName.trim()} className="glow-primary rounded-xl">

@@ -124,7 +124,8 @@ func (s *BankAccountService) Update(ctx context.Context, id int64, in UpdateBank
 			return apperr.Database(err)
 		}
 		return writeAudit(s.audit, tx, ActionUpdate, "bank_account", account.ID, map[string]any{
-			"name": account.Name,
+			"name":            account.Name,
+			"initial_balance": account.InitialBalance,
 		})
 	})
 	if err != nil {
@@ -133,7 +134,8 @@ func (s *BankAccountService) Update(ctx context.Context, id int64, in UpdateBank
 	return &account, nil
 }
 
-func (s *BankAccountService) Get(ctx context.Context, id int64) (*models.BankAccount, error) {	var account models.BankAccount
+func (s *BankAccountService) Get(ctx context.Context, id int64) (*models.BankAccount, error) {
+	var account models.BankAccount
 	if err := s.db.WithContext(ctx).First(&account, id).Error; err != nil {
 		return nil, apperr.Normalize(err)
 	}
