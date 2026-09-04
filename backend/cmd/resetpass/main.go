@@ -47,8 +47,20 @@ func main() {
 	}
 	affected, _ := res.RowsAffected()
 	if affected == 0 {
-		fmt.Fprintln(os.Stderr, "user not found:", username)
+		// No such user yet — create it (e.g. fresh/restored database).
+		res, err := db.Exec(
+			"INSERT INTO users (username, password_hash, display_name, role, is_active, created_at, updated_at) VALUES (?, ?, ?, 'ADMIN', 1, datetime('now'), datetime('now'))",
+			username, hash, "Administrator",
+		)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "insert:", err)
+			os.Exit(1)
+		}
+		affected, _ = res.RowsAffected()
+	}
+	if affected == 0 {
+		fmt.Fprintln(os.Stderr, "user not found and insert failed:", username)
 		os.Exit(1)
 	}
-	fmt.Println("password updated for", username)
+	fmt.Println("password set for", username)
 }

@@ -67,10 +67,11 @@ func Load() (*Config, error) {
 		cfg.CookieSecure = true
 	}
 
-	if cfg.AppEnv == EnvDevelopment {
-		cfg.AdminUsername = os.Getenv("ADMIN_USERNAME")
-		cfg.AdminPassword = os.Getenv("ADMIN_PASSWORD")
-	}
+	// Admin seeding is allowed in every environment when explicitly provided;
+	// the seed itself only runs while the users table is empty, so this is
+	// safe in production (e.g. after restoring a database without users).
+	cfg.AdminUsername = os.Getenv("ADMIN_USERNAME")
+	cfg.AdminPassword = os.Getenv("ADMIN_PASSWORD")
 
 	return cfg, nil
 }
