@@ -47,6 +47,14 @@ export default function ReportsPage() {
 
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  // Captured when a preset is selected (or page mounts) — refreshed on each
+  // selection so the window always ends at "now".
+  const [now, setNow] = useState(() => Date.now());
+
+  function selectRange(key: RangeKey) {
+    setRangeKey(key);
+    setNow(Date.now());
+  }
 
   // Preset ranges are derived; the custom window activates once both dates
   // are picked (same date in both fields = an exact one-day report).
@@ -59,13 +67,13 @@ export default function ReportsPage() {
       };
     }
     const days = RANGES.find((r) => r.key === rangeKey)!.days;
-    const to = new Date();
-    const from = new Date(to.getTime() - days * 86_400_000);
+    // Rolling window ending NOW — identical to the dashboard's window, so
+    // both views always show the same numbers for the same preset.
     return {
-      from: from.toISOString().slice(0, 10),
-      to: to.toISOString().slice(0, 10),
+      from: new Date(now - days * 86_400_000).toISOString(),
+      to: new Date(now).toISOString(),
     };
-  }, [rangeKey, customFrom, customTo]);
+  }, [rangeKey, now, customFrom, customTo]);
 
   const overviewQuery = useQuery({
     queryKey: ["reports-overview", rangeKey, rangeQuery?.from ?? "", rangeQuery?.to ?? ""],
@@ -88,7 +96,7 @@ export default function ReportsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <PageToolbar>
-        <UiSelect value={rangeKey} onValueChange={(v) => setRangeKey(v as RangeKey)}>
+        <UiSelect value={rangeKey} onValueChange={(v) => selectRange(v as RangeKey)}>
           <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
             {RANGES.map((r) => (
